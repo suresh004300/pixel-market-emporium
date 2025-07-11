@@ -13,17 +13,30 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const { login, isLoading } = useAuth();
+  const { login, isLoading, user } = useAuth();
   const navigate = useNavigate();
+
+  // Redirect if already logged in
+  if (user) {
+    navigate('/');
+    return null;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      await login(email, password);
+    
+    if (!email || !password) {
+      toast.error('Please fill in all fields');
+      return;
+    }
+
+    const { error } = await login(email, password);
+    
+    if (error) {
+      toast.error(error);
+    } else {
       toast.success('Welcome back!');
       navigate('/');
-    } catch (error) {
-      toast.error('Failed to sign in. Please try again.');
     }
   };
 
@@ -48,6 +61,7 @@ const Login = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 className="mt-1"
+                placeholder="Enter your email"
               />
             </div>
 
@@ -60,6 +74,7 @@ const Login = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
+                  placeholder="Enter your password"
                 />
                 <button
                   type="button"

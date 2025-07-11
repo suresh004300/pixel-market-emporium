@@ -15,23 +15,40 @@ const Register = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const { register, isLoading } = useAuth();
+  const { register, isLoading, user } = useAuth();
   const navigate = useNavigate();
+
+  // Redirect if already logged in
+  if (user) {
+    navigate('/');
+    return null;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!name || !email || !password || !confirmPassword) {
+      toast.error('Please fill in all fields');
+      return;
+    }
+
     if (password !== confirmPassword) {
       toast.error('Passwords do not match');
       return;
     }
 
-    try {
-      await register(email, password, name);
-      toast.success('Account created successfully!');
-      navigate('/');
-    } catch (error) {
-      toast.error('Failed to create account. Please try again.');
+    if (password.length < 6) {
+      toast.error('Password must be at least 6 characters long');
+      return;
+    }
+
+    const { error } = await register(email, password, name);
+    
+    if (error) {
+      toast.error(error);
+    } else {
+      toast.success('Account created successfully! Please check your email to verify your account.');
+      navigate('/login');
     }
   };
 
@@ -56,6 +73,7 @@ const Register = () => {
                 onChange={(e) => setName(e.target.value)}
                 required
                 className="mt-1"
+                placeholder="Enter your full name"
               />
             </div>
 
@@ -68,6 +86,7 @@ const Register = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 className="mt-1"
+                placeholder="Enter your email"
               />
             </div>
 
@@ -80,6 +99,7 @@ const Register = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
+                  placeholder="Enter your password (min. 6 characters)"
                 />
                 <button
                   type="button"
@@ -104,6 +124,7 @@ const Register = () => {
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
                 className="mt-1"
+                placeholder="Confirm your password"
               />
             </div>
 

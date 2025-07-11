@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
 import { useState } from 'react';
+import { toast } from 'sonner';
 
 const Header = () => {
   const { user, logout } = useAuth();
@@ -18,6 +19,12 @@ const Header = () => {
     if (searchQuery.trim()) {
       navigate(`/products?search=${encodeURIComponent(searchQuery.trim())}`);
     }
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    toast.success('Signed out successfully');
+    navigate('/');
   };
 
   return (
@@ -51,13 +58,19 @@ const Header = () => {
           <div className="flex items-center space-x-4">
             {user ? (
               <div className="flex items-center space-x-4">
-                <span className="hidden md:block">Hello, {user.name}</span>
+                <span className="hidden md:block">
+                  Hello, {user.user_metadata?.full_name || user.email?.split('@')[0]}
+                </span>
                 <Link to="/orders">
                   <Button variant="ghost" className="text-white hover:text-orange-400">
                     Orders
                   </Button>
                 </Link>
-                <Button variant="ghost" onClick={logout} className="text-white hover:text-orange-400">
+                <Button 
+                  variant="ghost" 
+                  onClick={handleLogout} 
+                  className="text-white hover:text-orange-400"
+                >
                   Sign Out
                 </Button>
               </div>
