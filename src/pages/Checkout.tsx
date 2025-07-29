@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 const Checkout = () => {
   const { items, totalPrice, clearCart } = useCart();
@@ -41,13 +42,78 @@ const Checkout = () => {
     e.preventDefault();
     setIsProcessing(true);
 
-    // Simulate payment processing
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    try {
+      if (!user) {
+        toast.error('Please login to place an order');
+        setIsProcessing(false);
+        return;
+      }
 
-    toast.success('Order placed successfully!');
-    clearCart();
-    navigate('/orders');
-    setIsProcessing(false);
+      // Generate order number
+      const { data: orderNumberData, error: orderNumberError } = await supabase
+        .rpc('generate_order_number');
+
+      if (orderNumberError) {
+        throw new Error('Failed to generate order number');
+      }
+
+      const orderNumber = orderNumberData;
+      const subtotal = totalPrice;
+      const tax = totalPrice * 0.08;
+      const total = subtotal + tax;
+
+      // Create the order
+      const { data: orderData, error: orderError } = await supabase
+        .from('orders')
+        .insert({
+          user_id: user.id,
+          order_number: orderNumber,
+          email: formData.email,
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+          address: formData.address,
+          city: formData.city,
+          state: formData.state,
+          zip_code: formData.zipCode,
+          subtotal: subtotal,
+          tax: tax,
+          total: total,
+          status: 'confirmed'
+        })
+        .select()
+        .single();
+
+      if (orderError) {
+        throw new Error('Failed to create order');
+      }
+
+      // Create order items
+      const orderItems = items.map(item => ({
+        order_id: orderData.id,
+        product_id: item.id,
+        title: item.title,
+        price: item.price,
+        quantity: item.quantity,
+        image: item.image
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('order_items')
+        .insert(orderItems);
+
+      if (itemsError) {
+        throw new Error('Failed to create order items');
+      }
+
+      toast.success('Order placed successfully!');
+      clearCart();
+      navigate('/orders');
+    } catch (error) {
+      console.error('Order creation error:', error);
+      toast.error('Failed to place order. Please try again.');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   if (items.length === 0) {

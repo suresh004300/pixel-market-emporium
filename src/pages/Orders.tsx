@@ -3,55 +3,66 @@ import { useState, useEffect } from 'react';
 import { Package, Calendar } from 'lucide-react';
 import Header from '@/components/Header';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+
+interface OrderItem {
+  id: string;
+  product_id: string;
+  title: string;
+  price: number;
+  quantity: number;
+  image: string;
+}
 
 interface Order {
   id: string;
-  date: string;
+  order_number: string;
+  created_at: string;
   total: number;
-  status: 'delivered' | 'shipped' | 'processing';
-  items: {
-    id: string;
-    title: string;
-    price: number;
-    quantity: number;
-    image: string;
-  }[];
+  status: string;
+  first_name: string;
+  last_name: string;
+  order_items: OrderItem[];
 }
 
 const Orders = () => {
   const { user } = useAuth();
-  const [orders] = useState<Order[]>([
-    {
-      id: 'ORD-001',
-      date: '2024-01-15',
-      total: 149.98,
-      status: 'delivered',
-      items: [
-        {
-          id: '1',
-          title: 'Wireless Bluetooth Headphones',
-          price: 149.98,
-          quantity: 1,
-          image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=100&h=100&fit=crop'
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchOrders = async () => {
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const { data: ordersData, error } = await supabase
+          .from('orders')
+          .select(`
+            *,
+            order_items (
+              *
+            )
+          `)
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error('Error fetching orders:', error);
+        } else {
+          setOrders(ordersData || []);
         }
-      ]
-    },
-    {
-      id: 'ORD-002',
-      date: '2024-01-20',
-      total: 59.98,
-      status: 'shipped',
-      items: [
-        {
-          id: '3',
-          title: 'Classic Cotton T-Shirt',
-          price: 24.99,
-          quantity: 2,
-          image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=100&h=100&fit=crop'
-        }
-      ]
-    }
-  ]);
+      } catch (error) {
+        console.error('Error fetching orders:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrders();
+  }, [user]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -59,12 +70,27 @@ const Orders = () => {
         return 'text-green-600 bg-green-50';
       case 'shipped':
         return 'text-blue-600 bg-blue-50';
+      case 'confirmed':
+        return 'text-blue-600 bg-blue-50';
       case 'processing':
         return 'text-yellow-600 bg-yellow-50';
+      case 'pending':
+        return 'text-orange-600 bg-orange-50';
       default:
         return 'text-gray-600 bg-gray-50';
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Header />
+        <div className="container mx-auto px-4 py-16 text-center">
+          <h1 className="text-2xl font-bold mb-4">Loading orders...</h1>
+        </div>
+      </div>
+    );
+  }
 
   if (!user) {
     return (
@@ -99,13 +125,13 @@ const Orders = () => {
                     <div className="flex items-center space-x-6">
                       <div>
                         <p className="text-sm text-gray-600">Order #</p>
-                        <p className="font-semibold">{order.id}</p>
+                        <p className="font-semibold">{order.order_number}</p>
                       </div>
                       <div>
                         <p className="text-sm text-gray-600">Order Date</p>
                         <p className="font-semibold flex items-center">
                           <Calendar className="h-4 w-4 mr-1" />
-                          {new Date(order.date).toLocaleDateString()}
+                          {new Date(order.created_at).toLocaleDateString()}
                         </p>
                       </div>
                       <div>
@@ -123,10 +149,10 @@ const Orders = () => {
 
                 <div className="p-6">
                   <div className="space-y-4">
-                    {order.items.map((item) => (
+                    {order.order_items.map((item) => (
                       <div key={item.id} className="flex items-center space-x-4">
                         <img
-                          src={item.image}
+                          src={item.image || 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=100&h=100&fit=crop'}
                           alt={item.title}
                           className="w-16 h-16 object-cover rounded-lg"
                         />
